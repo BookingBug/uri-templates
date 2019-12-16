@@ -39,9 +39,10 @@ var uri1b = template1.fill(function (varName) {
 ```
 
 ## Guess variables from URI ("de-substitution")
+
 ```javascript
 var uri2b = "/prefix/?beep=boop&bleep=bloop";
-var params = template2.fromUri(uri2b);
+var params = template2.fromUri(url2b);
 /*
 	{
 		params: {
@@ -68,6 +69,31 @@ var values = template.fromUri("/person/albums?fields=id,name,picture&token=12345
 }
 */
 ```
+
+### `strict` option
+
+Sometimes, you might want a more exact match, instead of a best guess.  For example, this could be useful when using URI Templates for routing.
+
+The `strict` option performs more checks, to see whether the URI being matched is plausible:
+
+```javascript
+var template = uriTemplate("/prefix/{value}/{suffix}");
+
+// Matches, even though "foo/bar" contains a "/" which is not allowed
+var looseMatch = template.fromUri('/prefix/foo/bar/suffix');
+// Does not match
+var strictMatch = template.fromUri('/prefix/foo/bar/suffix', {strict: true});
+
+```
+
+## Test URI
+
+```javascript
+var uri2b = "/prefix/?beep=boop&bleep=bloop";
+var isMatch = template2.test(url2b); // === true
+```
+
+This returns a boolean, and takes the same options as `.fromUri()`.
 
 ## License
 

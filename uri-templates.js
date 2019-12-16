@@ -1,6 +1,6 @@
 (function (global, factory) {
 	if (typeof define === 'function' && define.amd) {
-		define([], factory);
+		define('uri-templates', [], factory);
 	} else if (typeof module !== 'undefined' && module.exports){
 		module.exports = factory();
 	} else {
@@ -19,11 +19,17 @@
 	var uriTemplateSuffices = {
 		"*": true
 	};
+	var urlEscapedChars = /[:/&?#]/;
 
 	function notReallyPercentEncode(string) {
 		return encodeURI(string).replace(/%25[0-9][0-9]/g, function (doubleEncoded) {
 			return "%" + doubleEncoded.substring(3);
 		});
+	}
+
+	function isPercentEncoded(string) {
+		string = string.replace(/%../g, '');
+		return encodeURIComponent(string) === string;
 	}
 
 	function uriTemplateSubstitution(spec) {
@@ -146,13 +152,9 @@
 			}
 			return result;
 		};
-		var guessFunction = function (stringValue, resultObj) {
+		var guessFunction = function (stringValue, resultObj, strict) {
 			if (prefix) {
-				if (stringValue.substring(0, prefix.length) == prefix) {
-					stringValue = stringValue.substring(prefix.length);
-				} else {
-					return null;
-				}
+				stringValue = stringValue.substring(prefix.length);
 			}
 			if (varSpecs.length == 1 && varSpecs[0].suffices['*']) {
 				var varSpec = varSpecs[0];
@@ -174,11 +176,6 @@
 						hasEquals = true;
 					}
 					var innerArrayValue = stringValue.split(",");
-					for (var j = 0; j < innerArrayValue.length; j++) {
-						if (shouldEscape) {
-							innerArrayValue[j] = decodeURIComponent(innerArrayValue[j]);
-						}
-					}
 					if (innerArrayValue.length == 1) {
 						arrayValue[i] = innerArrayValue[0];
 					} else {
@@ -198,14 +195,33 @@
 							var stringValue = arrayValue[j];
 							var innerVarName = stringValue.split("=", 1)[0];
 							var stringValue = stringValue.substring(innerVarName.length + 1);
+							if (shouldEscape) {
+								if (strict && !isPercentEncoded(stringValue)) {
+									return;
+								}
+								stringValue = decodeURIComponent(stringValue);
+							}
 							innerValue = stringValue;
 						} else {
 							var stringValue = arrayValue[j][0];
 							var innerVarName = stringValue.split("=", 1)[0];
 							var stringValue = stringValue.substring(innerVarName.length + 1);
+							if (shouldEscape) {
+								if (strict && !isPercentEncoded(stringValue)) {
+									return;
+								}
+								stringValue = decodeURIComponent(stringValue);
+							}
 							arrayValue[j][0] = stringValue;
 							innerValue = arrayValue[j];
 						}
+						if (shouldEscape) {
+							if (strict && !isPercentEncoded(innerVarName)) {
+								return;
+							}
+							innerVarName = decodeURIComponent(innerVarName);
+						}
+
 						if (objectValue[innerVarName] !== undefined) {
 							if (Array.isArray(objectValue[innerVarName])) {
 								objectValue[innerVarName].push(innerValue);
@@ -222,6 +238,25 @@
 						resultObj[varName] = objectValue;
 					}
 				} else {
+					if (shouldEscape) {
+						for (var j = 0; j < arrayValue.length; j++) {
+							var innerArrayValue = arrayValue[j];
+							if (Array.isArray(innerArrayValue)) {
+								for (var k = 0; k < innerArrayValue.length; k++) {
+									if (strict && !isPercentEncoded(innerArrayValue[k])) {
+										return;
+									}
+									innerArrayValue[k] = decodeURIComponent(innerArrayValue[k]);
+								}
+							} else {
+								if (strict && !isPercentEncoded(innerArrayValue)) {
+									return;
+								}
+								arrayValue[j] = decodeURIComponent(innerArrayValue);
+							}
+						}
+					}
+
 					if (resultObj[varName] !== undefined) {
 						if (Array.isArray(resultObj[varName])) {
 							resultObj[varName] = resultObj[varName].concat(arrayValue);
@@ -289,6 +324,9 @@
 
 					for (var j = 0; j < innerArrayValue.length; j++) {
 						if (shouldEscape) {
+							if (strict && !isPercentEncoded(innerArrayValue[j])) {
+								return;
+							}
 							innerArrayValue[j] = decodeURIComponent(innerArrayValue[j]);
 						}
 					}
@@ -308,9 +346,10 @@
 					}
 				}
 			}
+			return 1;
 		};
-		subFunction.varNames = varNames;
 		return {
+			varNames: varNames,
 			prefix: prefix,
 			substitution: subFunction,
 			unSubstitution: guessFunction
@@ -336,7 +375,7 @@
 			unSubstitutions.push(funcs.unSubstitution);
 			prefixes.push(funcs.prefix);
 			textParts.push(remainder);
-			varNames = varNames.concat(funcs.substitution.varNames);
+			varNames = varNames.concat(funcs.varNames);
 		}
 		this.fill = function (valueFunction) {
 			if (valueFunction && typeof valueFunction !== 'function') {
@@ -354,28 +393,38 @@
 			}
 			return result;
 		};
-		this.fromUri = function (substituted) {
+		this.fromUri = function (substituted, options) {
+			options = options || {};
 			var result = {};
 			for (var i = 0; i < textParts.length; i++) {
 				var part = textParts[i];
 				if (substituted.substring(0, part.length) !== part) {
-					return undefined;
+					return /*undefined*/;
 				}
 				substituted = substituted.substring(part.length);
 				if (i >= textParts.length - 1) {
+					// We've run out of input - is there any template left?
 					if (substituted == "") {
 						break;
 					} else {
-						return undefined;
+						return /*undefined*/;
 					}
 				}
+
+				var prefix = prefixes[i];
+				if (prefix && substituted.substring(0, prefix.length) !== prefix) {
+					// All values are optional - if we have a prefix and it doesn't match, move along
+					continue;
+				}
+
+				// Find the next part to un-substitute
 				var nextPart = textParts[i + 1];
 				var offset = i;
 				while (true) {
 					if (offset == textParts.length - 2) {
 						var endPart = substituted.substring(substituted.length - nextPart.length);
 						if (endPart !== nextPart) {
-							return undefined;
+							return /*undefined*/;
 						}
 						var stringValue = substituted.substring(0, substituted.length - nextPart.length);
 						substituted = endPart;
@@ -399,7 +448,9 @@
 					}
 					break;
 				}
-				unSubstitutions[i](stringValue, result);
+				if (!unSubstitutions[i](stringValue, result, options.strict)) {
+					return /*undefined*/;
+				}
 			}
 			return result;
 		}
@@ -412,6 +463,9 @@
 		},
 		fillFromObject: function (obj) {
 			return this.fill(obj);
+		},
+		test: function (uri, options) {
+			return !!this.fromUri(uri, options)
 		}
 	};
 

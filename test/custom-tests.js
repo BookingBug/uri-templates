@@ -54,3 +54,14 @@ describe("Decode empty query", function () {
         assert.isUndefined(guess['']);
     });
 });
+
+describe('strict match example', function () {
+	it('does not match invalid "/"', function () {
+		var template = UriTemplate("/prefix/{value}/{suffix}");
+
+		var looseMatch = template.fromUri('/prefix/foo/bar/suffix');
+		var strictMatch = template.fromUri('/prefix/foo/bar/suffix', {strict: true});
+		assert.isObject(looseMatch);
+		assert.isUndefined(strictMatch);
+	});
+});
