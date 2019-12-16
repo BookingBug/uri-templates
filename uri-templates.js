@@ -111,18 +111,32 @@
 					result += (separator || ",");
 				}
 				if (Array.isArray(value)) {
-					if (showVariables) {
-						result += varSpec.name + "=";
-					}
-					for (var j = 0; j < value.length; j++) {
-						if (j > 0) {
-							result += varSpec.suffices['*'] ? (separator || ",") : ",";
-							if (varSpec.suffices['*'] && showVariables) {
-								result += varSpec.name + "=";
-							}
-						}
-						result += shouldEscape ? encodeURIComponent(value[j]).replace(/!/g, "%21") : notReallyPercentEncode(value[j]);
-					}
+                    if (typeof value[0] == "object") {
+                        for (var j = 0; j < value.length; j++) {
+                            if (typeof value[j] == "object") {
+                                for (var k = 0; k < Object.keys(value[j]).length; k++) {
+                                    var key = Object.keys(value[j])[k];
+                                    result += varSpec.name + "[][" + key + "]="
+                                    result += shouldEscape ? encodeURIComponent(value[j][key]).replace(/!/g, "%21") : notReallyPercentEncode(value[j][key]);
+                                    if (k < Object.keys(value[j]).length - 1) result += separator;
+                                }
+                            }
+                            if (j < value.length - 1) result += separator;
+                        }
+                    } else {
+                        if (showVariables) {
+                            result += varSpec.name + "=";
+                        }
+                        for (var j = 0; j < value.length; j++) {
+                            if (j > 0) {
+                                result += varSpec.suffices['*'] ? (separator || ",") : ",";
+                                if (varSpec.suffices['*'] && showVariables) {
+                                    result += varSpec.name + "=";
+                                }
+                            }
+                            result += shouldEscape ? encodeURIComponent(value[j]).replace(/!/g, "%21") : notReallyPercentEncode(value[j]);
+                        }
+                    }
 				} else if (typeof value == "object") {
 					if (showVariables && !varSpec.suffices['*']) {
 						result += varSpec.name + "=";

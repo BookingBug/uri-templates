@@ -65,3 +65,15 @@ describe('strict match example', function () {
 		assert.isUndefined(strictMatch);
 	});
 });
+
+describe('Fill object has array of objects', function () {
+    it('?array[][a]=x&array[][b]=i&array[][a]=y&array[][b]=j', function () {
+        var template = UriTemplate("{?array}");
+        var object = {
+            array: [{a: 'x', b: 'i'}, {a: 'y', b: 'j'}]
+        };
+        var uri = template.fill(object);
+        assert.strictEqual(uri, '?array[][a]=x&array[][b]=i&array[][a]=y&array[][b]=j');
+    });
+});
+
