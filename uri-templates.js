@@ -124,16 +124,29 @@
                             if (j < value.length - 1) result += separator;
                         }
                     } else {
-                        if (showVariables) {
-                            result += varSpec.name + "=";
+                        // if (showVariables) {
+                        //     result += varSpec.name + "=";
+                        // }
+                        // for (var j = 0; j < value.length; j++) {
+                        //     if (j > 0) {
+                        //         result += varSpec.suffices['*'] ? (separator || ",") : ",";
+                        //         if (varSpec.suffices['*'] && showVariables) {
+                        //             result += varSpec.name + "=";
+                        //         }
+                        //     }
+                        //     result += shouldEscape ? encodeURIComponent(value[j]).replace(/!/g, "%21") : notReallyPercentEncode(value[j]);
+						// }
+
+						if (showVariables) {
+                            result += varSpec.name + "[]=";
                         }
-                        for (var j = 0; j < value.length; j++) {
-                            if (j > 0) {
-                                result += varSpec.suffices['*'] ? (separator || ",") : ",";
-                                if (varSpec.suffices['*'] && showVariables) {
-                                    result += varSpec.name + "=";
-                                }
-                            }
+						for (var j = 0; j < value.length; j++) {
+							if (j > 0) {
+								result += '&'
+								if (showVariables) {
+									result += varSpec.name + "[]="
+								}
+							}
                             result += shouldEscape ? encodeURIComponent(value[j]).replace(/!/g, "%21") : notReallyPercentEncode(value[j]);
                         }
                     }
